@@ -17,10 +17,8 @@ namespace Gym.Day02
             List<Mismatch> Mismatched = new();
             List<string> MissingInBank = new();
             List<string> MissingInLedger = new();
-            if(ledger == null || bank == null)
-            {
-                throw new ArgumentNullException("Either List Null");
-            }
+            ArgumentNullException.ThrowIfNull(ledger);
+            ArgumentNullException.ThrowIfNull(bank);
 
             Dictionary<string, decimal> ledgerDict = new Dictionary<string, decimal>();
             Dictionary<string, decimal> bankDict = new Dictionary<string, decimal>();
@@ -57,7 +55,7 @@ namespace Gym.Day02
             }
             if(Mismatched.Any())
             {
-                Mismatched.Sort((x, y) => string.Compare(x.Reference, y.Reference));
+                Mismatched.Sort((x, y) => string.CompareOrdinal(x.Reference, y.Reference));
             }
 
             if(ledgerDict.Any())
