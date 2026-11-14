@@ -1,4 +1,5 @@
 using HookRelay.Api.Destinations;
+using Microsoft.AspNetCore.Http;
 
 namespace HookRelay.Tests.Destinations;
 
@@ -36,22 +37,23 @@ public class HookRelayProblemsTests
     }
 
     [Fact]
-    public void Invalid_Destination_name_400_destination()
+    public void Validation_becomes_400_with_the_field_errors()
     {
-        Dictionary<string, string[]> errors = new Dictionary<string, string[]> { {"name",  new[]{"Name is required."}}};
+        var errors = new Dictionary<string, string[]> { ["name"] = new[] { "Name is required." } };
         var ex = new DestinationValidationException(errors);
 
         var p = HookRelayProblems.From(ex);
 
-        Assert.NotNull(p);
-        Assert.Equal(400, p!.Status);
-        Assert.Equal("Invalid destination", p.Title);
-        Assert.Equal(ex.Message, p.Detail);
-        Assert.Equal(new[] { "name"}, ex.Errors.Keys.OrderBy(k => k));
+        var v = Assert.IsType<HttpValidationProblemDetails>(p);    // the errors live on p, not ex
+        Assert.Equal(400, v.Status);
+        Assert.Equal("https://hookrelay.dev/problems/invalid-destination", v.Type);
+        Assert.Equal("Invalid destination", v.Title);
+        Assert.Equal(new[] { "name" }, v.Errors.Keys);
+        Assert.Equal(new[] { "Name is required." }, v.Errors["name"]);
     }
 
     [Fact]
-    public void Invalid_Destination_name_404_destination()
+    public void Not_found_becomes_404_with_the_id()
     {
         var ex = new DestinationNotFoundException("dst_1");
 
@@ -59,9 +61,23 @@ public class HookRelayProblemsTests
 
         Assert.NotNull(p);
         Assert.Equal(404, p!.Status);
+        Assert.Equal("https://hookrelay.dev/problems/destination-not-found", p.Type);
         Assert.Equal("Destination not found", p.Title);
         Assert.Equal(ex.Message, p.Detail);
         Assert.Equal("dst_1", p.Extensions["id"]);
+    }
+
+    [Fact]
+    public void Store_unavailable_becomes_503_without_the_inner_message()
+    {
+        var ex = new DestinationStoreUnavailableException(new IOException("disk full"));
+
+        var p = HookRelayProblems.From(ex);
+
+        Assert.NotNull(p);
+        Assert.Equal(503, p!.Status);
+        Assert.Equal("https://hookrelay.dev/problems/store-unavailable", p.Type);
+        Assert.DoesNotContain("disk full", p.Detail);                // the cause stays in the logs
     }
 
     public static TheoryData<Exception> NotOurs => new()

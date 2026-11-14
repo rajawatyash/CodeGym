@@ -7,12 +7,14 @@ public sealed class DestinationService
     private readonly IDestinationStore _store;
     private readonly IIdGenerator _idGenerator;
     private readonly ISecretGenerator _secretGenerator;
+    private readonly TimeProvider _timeProvider;
 
-    public DestinationService(IDestinationStore store, IIdGenerator idGenerator, ISecretGenerator secretGenerator)
+    public DestinationService(IDestinationStore store, IIdGenerator idGenerator, ISecretGenerator secretGenerator, TimeProvider timeProvider)
     {
         _store = store;
         _idGenerator = idGenerator;
         _secretGenerator = secretGenerator;
+        _timeProvider = timeProvider;
     }
     public Destination Create(string name, string url, string source)
     {
@@ -30,7 +32,7 @@ public sealed class DestinationService
 
         string id = _idGenerator.Next("dst");
         string secret = _secretGenerator.NewSecret();
-        var destination = new Destination(id, trimmed!, uri, src!.Value, secret, DestinationStatus.Active);
+        var destination = new Destination(id, trimmed!, uri, src!.Value, secret, DestinationStatus.Active, _timeProvider.GetUtcNow());
         try
         {
             _store.Add(destination);

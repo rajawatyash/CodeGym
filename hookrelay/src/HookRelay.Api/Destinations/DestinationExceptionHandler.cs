@@ -27,8 +27,9 @@ public sealed class DestinationExceptionHandler : IExceptionHandler
         }
         if(problem.Status!.Value >= 500)
         {
-            _logger.LogError("Destination Store unavailable with {Status} {Type}. TraceId {TraceId}",
-                               problem.Status, problem.Type, traceId);
+            // our failure (e.g. 503): Error, with the exception so the inner cause is in the log
+            _logger.LogError(exception, "Request failed with {Status} {Type}. TraceId {TraceId}",
+                             problem.Status, problem.Type, traceId);
         }
         else
         {

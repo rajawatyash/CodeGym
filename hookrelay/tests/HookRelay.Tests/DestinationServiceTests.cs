@@ -1,14 +1,19 @@
 ﻿using HookRelay.Api.Destinations;
+using Microsoft.Extensions.Time.Testing;
 
 namespace HookRelay.Tests.Destinations;
 
 public class DestinationServiceTests
 {
-    private static DestinationService NewService() =>
-        new(new InMemoryDestinationStore(), new FakeIdGenerator(), new FakeSecretGenerator());
+    private static readonly DateTimeOffset Start = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    private static DestinationService TestStoreService() =>
-        new(new FailingDestinationStore(), new FakeIdGenerator(), new FakeSecretGenerator());
+    private static DestinationService NewService() =>
+        new(new InMemoryDestinationStore(), new FakeIdGenerator(), new FakeSecretGenerator(),
+            new FakeTimeProvider(Start));
+
+    private static DestinationService FailingStoreService() =>
+        new(new FailingDestinationStore(), new FakeIdGenerator(), new FakeSecretGenerator(),
+            new FakeTimeProvider(Start));
 
     [Fact]
     public void Create_registers_an_active_destination_with_an_id_and_a_secret()
@@ -23,6 +28,7 @@ public class DestinationServiceTests
         Assert.Equal(SourceType.Stripe, d.Source);
         Assert.Equal("whsec_test_1", d.SigningSecret);
         Assert.Equal(DestinationStatus.Active, d.Status);
+        Assert.Equal(Start, d.CreatedAt);                        // time comes from TimeProvider
     }
 
     [Fact]
@@ -246,10 +252,10 @@ public class DestinationServiceTests
     }
 
     [Fact]
-    public void Failing_Store_Test()
+    public void A_store_failure_is_wrapped_and_keeps_the_cause()
     {
         var ex = Assert.Throws<DestinationStoreUnavailableException>(() =>
-            TestStoreService().Create("dst_1", "https://a.example.com/h", "github"));
+            FailingStoreService().Create("Shop", "https://a.example.com/h", "github"));
 
         Assert.IsType<IOException>(ex.InnerException);
     }
