@@ -1,0 +1,83 @@
+@api = http://localhost:5039
+
+### 1. health → 200 "ok"
+GET {{api}}/health
+
+### 2. create → 201, Location /destinations/dst_..., body has signingSecret
+# @name create
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "Kettle shop", "url": "https://hooks.kettle.co/orders", "source": "stripe" }
+
+### 3. read back → 200, same id, NO secret in the body
+GET {{api}}/destinations/{{create.response.body.$.id}}
+
+### 4. unknown id → 404 application/problem+json
+GET {{api}}/destinations/dst_nope
+
+### 5. same URL again → 409 duplicate-destination, existingId, existingStatus "Active"
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "Copy", "url": "https://hooks.kettle.co/orders", "source": "github" }
+
+### 6. not http(s) → 400 invalid-destination, errors.url
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "Ftp", "url": "ftp://files.kettle.co/x", "source": "stripe" }
+
+### 7. http on a real host → 400 errors.url ("http is only allowed for localhost")
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "Plain", "url": "http://kettle.co/hooks", "source": "stripe" }
+
+### 8. http on localhost → 201 (allowed)
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "Local", "url": "http://localhost:5000/hooks", "source": "generic" }
+
+### 9. IP address → 400 errors.url
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "Ip", "url": "https://10.0.0.5/hooks", "source": "stripe" }
+
+### 10. credentials in URL → 400 errors.url
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "Creds", "url": "https://user:pass@kettle.co/hooks", "source": "stripe" }
+
+### 11. several bad fields → 400 with errors.name AND errors.source together
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "", "url": "https://two.kettle.co/hooks", "source": "paypal" }
+
+### 12. list all → 200, in registration order (rows 2 and 8)
+GET {{api}}/destinations
+
+### 13. list by source → 200, only stripe
+GET {{api}}/destinations?source=stripe
+
+### 14. list with bad source → 400 errors.source
+GET {{api}}/destinations?source=paypal
+
+### 15. disable → 200, status "Disabled"
+POST {{api}}/destinations/{{create.response.body.$.id}}/disable
+
+### 16. disable again → 409 destination-already-disabled, id
+POST {{api}}/destinations/{{create.response.body.$.id}}/disable
+
+### 17. disable unknown → 404 destination-not-found, id
+POST {{api}}/destinations/dst_nope/disable
+
+### 18. re-register the disabled URL → 409, existingStatus "Disabled"
+POST {{api}}/destinations
+Content-Type: application/json
+
+{ "name": "Again", "url": "https://hooks.kettle.co/orders", "source": "stripe" }

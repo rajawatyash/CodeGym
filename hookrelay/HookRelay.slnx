@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HookRelay.Api/HookRelay.Api.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HookRelay.Tests/HookRelay.Tests.csproj" />
+  </Folder>
+</Solution>

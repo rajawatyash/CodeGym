@@ -1,0 +1,39 @@
+@api = http://localhost:5290
+
+GET {{api}}/coupons/save10
+
+###
+POST {{api}}/coupons
+Content-Type: application/json
+
+{ "code": "save10", "percentOff": 10 }
+
+### 201, Location: /coupons/SAVE10
+POST {{api}}/coupons
+Content-Type: application/json
+
+{ "code": "save10", "percentOff": 10 }
+
+### 409
+POST {{api}}/coupons
+Content-Type: application/json
+
+{ "code": "SAVE10", "percentOff": 20 }
+
+### 400 (bad code)
+POST {{api}}/coupons
+Content-Type: application/json
+
+{ "code": "x", "percentOff": 10 }
+
+### 400 (missing code: arrives as null)
+POST {{api}}/coupons
+Content-Type: application/json
+
+{ "percentOff": 10 }
+
+### 200
+GET {{api}}/coupons/save10
+
+### 404
+GET {{api}}/coupons/NOPE
