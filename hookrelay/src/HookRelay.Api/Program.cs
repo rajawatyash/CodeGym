@@ -1,4 +1,7 @@
+using System.Text.Json;
 using HookRelay.Api.Destinations;
+using HookRelay.Api.Events;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +24,8 @@ builder.Services.AddSingleton<IIdGenerator, GuidIdGenerator>();
 builder.Services.AddSingleton<ISecretGenerator, GuidSecretGenerator>();
 // singleton: no state of its own, and depends only on singletons (no captive dependency)
 builder.Services.AddSingleton<DestinationService>();
+builder.Services.AddSingleton<IEventStore, InMemoryEventStore>();
+builder.Services.AddSingleton<IngestService>();
 
 var app = builder.Build();
 app.UseExceptionHandler();
@@ -56,6 +61,33 @@ app.MapPost("/destinations/{id}/disable", (string id, DestinationService destina
 
     return Results.Ok(GetDestinationResponse.From(value));
     
+});
+
+app.MapPost("/in/{source}",
+    (string source,
+     [FromHeader(Name = "Webhook-Id")] string? webhookId,
+     [FromBody] JsonElement? payload,
+     IngestService ingest) =>
+    {
+        var result = ingest.Ingest(source, webhookId, payload?.GetRawText() ?? "");
+        var body = EventResponse.From(result.Event);
+
+        return result.IsNew
+            ? Results.Accepted($"/events/{body.Id}", body)   // 202 + Location header + JSON
+            : Results.Ok(body);                             // 200, same JSON
+    });
+
+app.MapGet("/events/{id}", (string id, IngestService service) =>
+    service.TryGet(id, out var webhookEvent)
+        ? Results.Ok(EventResponse.From(webhookEvent))
+        : Results.NotFound());
+
+app.MapGet("/events", (string? source, IngestService service) =>
+{
+    var list = service.GetWebhookEvents(source)
+            .ToList();
+
+    return Results.Ok(list);
 });
     
 

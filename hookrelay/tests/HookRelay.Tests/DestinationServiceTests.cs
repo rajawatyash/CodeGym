@@ -1,4 +1,5 @@
-﻿using HookRelay.Api.Destinations;
+﻿using System.Collections.Concurrent;
+using HookRelay.Api.Destinations;
 using Microsoft.Extensions.Time.Testing;
 
 namespace HookRelay.Tests.Destinations;
@@ -258,5 +259,29 @@ public class DestinationServiceTests
             FailingStoreService().Create("Shop", "https://a.example.com/h", "github"));
 
         Assert.IsType<IOException>(ex.InnerException);
+    }
+
+    [Fact]
+    public void Parallel_destinations_of_one_destination_exactly_one()
+    {
+        var service = NewService();       // dst_1
+        int created = 0, duplicates = 0;
+
+        Parallel.For(0, 50, _ =>
+        {
+            try
+            {
+                service.Create("Shop", "https://race.example/hook", "stripe");
+                Interlocked.Increment(ref created);        // not created++ : that's a race itself
+            }
+            catch (DuplicateDestinationException)
+            {
+                Interlocked.Increment(ref duplicates);
+            }
+        });
+
+        Assert.Equal(1, created);                          // exactly one success
+        Assert.Equal(49, duplicates);                      // everyone else: duplicate
+        Assert.Single(service.GetDestinations(null));      // the store holds one
     }
 }

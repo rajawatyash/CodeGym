@@ -49,6 +49,13 @@ public static class HookRelayProblems
             Status = StatusCodes.Status503ServiceUnavailable,
             Detail = e.Message,
         },
+        EventValidationException e => new HttpValidationProblemDetails(e.Errors)
+        {
+            Type = Base + "invalid-event",
+            Title = "Invalid event",
+            Status = StatusCodes.Status400BadRequest,
+            Detail = e.Message
+        },
         _ => null   // not ours: the default handling turns it into a 500
     };
 }

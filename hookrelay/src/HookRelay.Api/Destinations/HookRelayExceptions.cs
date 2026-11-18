@@ -50,3 +50,14 @@ public sealed class DestinationStoreUnavailableException : Exception
     public DestinationStoreUnavailableException(Exception inner)
         : base("The destination store is unavailable.", inner) { }   // safe message; cause kept
 }
+
+public sealed class EventValidationException : InvalidOperationException
+{
+    public EventValidationException(Dictionary<string, string[]> errors)
+        : base("One or more validation errors occurred.")
+    {
+        Errors = errors;
+    }
+
+    public IDictionary<string, string[]> Errors { get; }
+}

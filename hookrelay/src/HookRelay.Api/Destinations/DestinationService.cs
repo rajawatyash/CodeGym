@@ -26,16 +26,15 @@ public sealed class DestinationService
 
         ThrowIfAny(errors);
 
-        // from here every value is valid, so '!' is a fact, not a hope
-        if (_store.TryGetByUrl(uri!.AbsoluteUri, out var d))
-            throw new DuplicateDestinationException(d.Url.AbsoluteUri, d.Id, d.Status);
-
         string id = _idGenerator.Next("dst");
         string secret = _secretGenerator.NewSecret();
         var destination = new Destination(id, trimmed!, uri, src!.Value, secret, DestinationStatus.Active, _timeProvider.GetUtcNow());
         try
         {
-            _store.Add(destination);
+            if(!_store.TryAdd(destination, out var stored))
+            {
+                throw new DuplicateDestinationException(stored.Url.AbsoluteUri, stored.Id, stored.Status);
+            }
         }
         catch (IOException ex)                       // narrow: only the failure you expect
         {

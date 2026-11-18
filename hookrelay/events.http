@@ -1,0 +1,91 @@
+### P04: ingest and read back events
+### Paste under your existing requests, below the line that defines @host.
+### Ids are Guid-based (ev_3f2a...), so request 1 is named "first" and later
+### requests read its id from the response: {{first.response.body.$.id}}
+@host = http://localhost:5039
+### 1. First time: saved -> 202 Accepted, Location: /events/ev_..., body { id, source, eventId, status, receivedAt }
+# @name first
+POST {{host}}/in/stripe
+Webhook-Id: evt_1
+Content-Type: application/json
+
+{ "type": "charge.succeeded", "amount": 500 }
+
+### 2. Same webhook again -> 200 OK, SAME id as request 1 (not saved twice)
+POST {{host}}/in/stripe
+Webhook-Id: evt_1
+Content-Type: application/json
+
+{ "type": "charge.succeeded", "amount": 500 }
+
+### 3. Source in capitals -> still a repeat: 200, same id
+POST {{host}}/in/STRIPE
+Webhook-Id: evt_1
+Content-Type: application/json
+
+{ "type": "charge.succeeded", "amount": 500 }
+
+### 4. Same Webhook-Id, different source -> a NEW event: 202, a different id
+POST {{host}}/in/github
+Webhook-Id: evt_1
+Content-Type: application/json
+
+{ "action": "opened" }
+
+### 5. New Webhook-Id -> 202, new id
+POST {{host}}/in/stripe
+Webhook-Id: evt_2
+Content-Type: application/json
+
+{ "type": "charge.refunded", "amount": 500 }
+
+### 6. Read back the event from request 1 -> 200, same body as request 1
+GET {{host}}/events/{{first.response.body.$.id}}
+
+### 7. Unknown id -> 404 (problem+json)
+GET {{host}}/events/ev_nope
+
+### 8. Unknown source -> 400, errors.source
+POST {{host}}/in/paypal
+Webhook-Id: evt_9
+Content-Type: application/json
+
+{ "type": "x" }
+
+### 9. Number as source -> 400, errors.source (Enum.IsDefined check)
+POST {{host}}/in/7
+Webhook-Id: evt_9
+Content-Type: application/json
+
+{ "type": "x" }
+
+### 10. No Webhook-Id header -> 400, errors.webhookId
+POST {{host}}/in/stripe
+Content-Type: application/json
+
+{ "type": "x" }
+
+### 11. Blank Webhook-Id -> 400, errors.webhookId
+POST {{host}}/in/stripe
+Webhook-Id:
+Content-Type: application/json
+
+{ "type": "x" }
+
+### 12. Empty body -> 400, errors.payload
+POST {{host}}/in/stripe
+Webhook-Id: evt_10
+Content-Type: application/json
+
+### 13. Two problems at once -> ONE 400 with both errors.source and errors.webhookId
+POST {{host}}/in/paypal
+Content-Type: application/json
+
+{ "type": "x" }
+
+
+### 14. 
+GET {{host}}/events?source=stripe
+
+### 15.
+GET {{host}}/events
